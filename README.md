@@ -1,21 +1,109 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# 🏠 ServiGo – HyperLocal Home Services Platform
 
-# Run and deploy your AI Studio app
+> A full-stack hyperlocal on-demand service marketplace connecting customers with verified local technicians for home repair and daily services like plumbing, electrical work, AC repair, cleaning, and more.
 
-This contains everything you need to run your app locally.
+---
 
-View your app in AI Studio: https://ai.studio/apps/af9bb8c9-f98a-4982-902c-5e1b65f41e1a
+## 🚀 Overview
 
-## Run Locally
+**ServiGo** is a scalable, fast, and modern service marketplace built for Android + Web ecosystems. It allows users to book home services instantly, track technicians in real-time, and pay securely.
 
-**Prerequisites:**  [Android Studio](https://developer.android.com/studio)
+It includes:
+- 📱 Customer Mobile App (Android)
+- 🔧 Technician App (Android)
+- 🧑‍💼 Admin Dashboard (Web)
+- ⚙️ Node.js Backend API
 
+---
 
-1. Open Android Studio
-2. Select **Open** and choose the directory containing this project
-3. Allow Android Studio to fix any incompatibilities as it imports the project.
-4. Create a file named `.env` in the project directory and set `GEMINI_API_KEY` in that file to your Gemini API key (see `.env.example` for an example)
-5. Remove this line from the app's `build.gradle.kts` file: `signingConfig = signingConfigs.getByName("debugConfig")`
-6. Run the app on an emulator or physical device
+## ✨ Key Features
+
+### 👨‍👩‍👧 Customers
+- OTP-based login
+- Service browsing & search
+- Instant booking system
+- Live technician tracking
+- UPI & Cash payments
+- Ratings & reviews
+- Booking history
+
+### 🔧 Technicians
+- Registration & KYC verification
+- Job request management
+- Earnings dashboard
+- Availability toggle
+- Performance ratings
+
+### 🧑‍💼 Admin Panel
+- Manage users & technicians
+- Add/edit services & pricing
+- Booking control system
+- Revenue tracking
+- Ratings moderation
+- Support ticket system
+
+---
+
+## 🧠 Smart Features
+- AI-based service suggestions
+- Auto technician matching algorithm
+- Distance-based assignment
+- Dynamic pricing support
+- Fraud detection system (future-ready)
+
+---
+
+## 🏗️ Tech Stack
+
+| Layer | Technology |
+|------|------------|
+| Mobile App | Flutter |
+| Backend | Node.js (Express/NestJS) |
+| Database | MongoDB |
+| Admin Panel | Next.js |
+| Auth | JWT + OTP (Firebase optional) |
+| Maps | Google Maps API |
+| Payments | Razorpay API |
+
+---
+
+## 📸 Screenshots
+
+> *(Replace these with real screenshots after UI development)*
+
+### 🏠 Home Dashboard
+![Home](screenshots/home.png)
+
+### 📦 Service Booking Flow
+![Booking](screenshots/booking.png)
+
+### 🧑‍🔧 Technician Dashboard
+![Technician](screenshots/technician.png)
+
+### 🧑‍💼 Admin Panel
+![Admin](screenshots/admin.png)
+
+---
+
+## 📁 Project Structure
+
+```bash
+servigo-platform/
+│
+├── mobile-app/
+│   ├── customer-app/
+│   ├── technician-app/
+│
+├── backend/
+│   ├── controllers/
+│   ├── routes/
+│   ├── models/
+│   ├── middleware/
+│
+├── admin-panel/
+│   ├── pages/
+│   ├── components/
+│
+├── docs/
+├── database/
+└── README.md
