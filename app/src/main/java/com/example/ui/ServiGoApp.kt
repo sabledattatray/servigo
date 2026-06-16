@@ -4,11 +4,11 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.List
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -33,7 +33,7 @@ import com.example.ui.screens.BookingProcessScreen
 
 sealed class Screen(val route: String, val title: String, val selectedIcon: ImageVector, val unselectedIcon: ImageVector) {
     object Home : Screen("home", "Home", Icons.Filled.Home, Icons.Outlined.Home)
-    object Bookings : Screen("bookings", "Bookings", Icons.Filled.List, Icons.Outlined.List)
+    object Bookings : Screen("bookings", "Bookings", Icons.AutoMirrored.Filled.List, Icons.AutoMirrored.Outlined.List)
     object Profile : Screen("profile", "Profile", Icons.Filled.Person, Icons.Outlined.Person)
 }
 
@@ -79,9 +79,53 @@ fun ServiGoApp(viewModel: MainViewModel) {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Home.route,
+            startDestination = "landing",
             modifier = Modifier.padding(innerPadding)
         ) {
+            composable("landing") {
+                com.example.ui.screens.LandingScreen(
+                    onNavigateToLogin = { navController.navigate("login") },
+                    onNavigateToSignUp = { navController.navigate("signup") }
+                )
+            }
+            composable("login") {
+                com.example.ui.screens.AuthInputScreen(
+                    isSignUp = false,
+                    onBack = { navController.popBackStack() },
+                    onSendOtp = { contact, isProvider -> navController.navigate("otp/$contact/$isProvider") }
+                )
+            }
+            composable("signup") {
+                com.example.ui.screens.AuthInputScreen(
+                    isSignUp = true,
+                    onBack = { navController.popBackStack() },
+                    onSendOtp = { contact, isProvider -> navController.navigate("otp/$contact/$isProvider") }
+                )
+            }
+            composable("otp/{contact}/{isProvider}") { backStackEntry ->
+                val contact = backStackEntry.arguments?.getString("contact") ?: ""
+                val isProvider = backStackEntry.arguments?.getString("isProvider")?.toBoolean() ?: false
+                com.example.ui.screens.OtpVerificationScreen(
+                    contact = contact,
+                    onBack = { navController.popBackStack() },
+                    onVerify = { navController.navigate("welcome/$isProvider") }
+                )
+            }
+            composable("welcome/{isProvider}") { backStackEntry ->
+                val isProvider = backStackEntry.arguments?.getString("isProvider")?.toBoolean() ?: false
+                com.example.ui.screens.WelcomeScreen(
+                    isProvider = isProvider,
+                    onGetStarted = { 
+                        val route = if (isProvider) "provider_dashboard" else Screen.Home.route
+                        navController.navigate(route) {
+                            popUpTo("landing") { inclusive = true }
+                        }
+                    }
+                )
+            }
+            composable("provider_dashboard") {
+                com.example.ui.screens.ProviderDashboardScreen()
+            }
             composable(Screen.Home.route) {
                 HomeScreen(
                     viewModel = viewModel,

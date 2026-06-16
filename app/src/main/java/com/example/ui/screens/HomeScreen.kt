@@ -28,6 +28,8 @@ import androidx.compose.material.icons.filled.ElectricalServices
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Plumbing
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -99,7 +101,7 @@ fun HomeScreen(
                     value = "",
                     onValueChange = {},
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("What service do you need?") },
+                    placeholder = { Text("Describe your problem (e.g. AC not cooling, water leakage...)") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
                     shape = RoundedCornerShape(24.dp)
                 )
@@ -134,6 +136,27 @@ fun HomeScreen(
             if (services.isNotEmpty()) {
                 item {
                     Text(
+                        text = "Emergency Services",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFF6B6B),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        EmergencyCard(title = "Plumbing Emergency", time = "Under 30 mins", modifier = Modifier.weight(1f))
+                        EmergencyCard(title = "Electrical Short", time = "Under 30 mins", modifier = Modifier.weight(1f))
+                    }
+                }
+                
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
                         text = "Popular Services",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
@@ -145,6 +168,20 @@ fun HomeScreen(
                     PopularServiceItem(service = service) {
                         onNavigateToCategory(service.category)
                     }
+                }
+                
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Top Rated Professionals Near You",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+                
+                items(2) {
+                    TopRatedProCard()
                 }
             }
         }
@@ -270,3 +307,56 @@ fun PopularServiceItem(service: ServiceEntity, onClick: () -> Unit) {
 }
 
 data class CategoryItem(val name: String, val icon: ImageVector, val color: Color)
+
+@Composable
+fun EmergencyCard(title: String, time: String, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFCDD2))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFD32F2F))
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color(0xFFC62828))
+            Text(time, style = MaterialTheme.typography.labelSmall, color = Color(0xFFD32F2F))
+        }
+    }
+}
+
+@Composable
+fun TopRatedProCard() {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp),
+        shape = RoundedCornerShape(32.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+    ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Rajesh Sharma", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Plumbing Expert • 1.2 km away", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("⭐ 4.9 ", style = MaterialTheme.typography.bodySmall, color = Color(0xFFF59E0B), fontWeight = FontWeight.Bold)
+                    Text("(120 jobs)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            androidx.compose.material3.Button(onClick = { /* TODO */ }, shape = CircleShape) {
+                Text("Book", fontSize = 12.sp)
+            }
+        }
+    }
+}
