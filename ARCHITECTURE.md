@@ -6,27 +6,28 @@ ServiGo is a production-grade hyperlocal on-demand home services marketplace, ar
 **Enterprise Tech Stack:**
 *   **Mobile Apps (Customer & Provider):** Flutter (Dart) for unified iOS/Android codebases with high native performance.
 *   **Web Dashboard (Admin):** Next.js (React), Tailwind CSS, TypeScript.
-*   **Backend API:** Node.js using NestJS (strict TypeScript, dependency injection, microservices-ready).
-*   **Primary Database:** PostgreSQL (relational integrity for payments/bookings) + PostGIS extension for high-performance geospatial queries, OR MongoDB with 2dsphere indexing for flexible document scaling.
-*   **Real-time Engine:** WebSockets (Socket.IO) or Firebase Realtime Database for live tracking and job dispatch.
-*   **Cloud Infrastructure:** AWS / Google Cloud (Dockerized deployment, Kubernetes for scaling).
+*   **Backend API:** Node.js using NestJS (strict TypeScript, dependency injection, Event-Driven Architecture).
+*   **Primary Database:** PostgreSQL (relational integrity for payments/bookings) + PostGIS extension for high-performance geospatial queries.
+*   **In-Memory Store & Queues:** Redis for live location caching, Pub/Sub, and BullMQ for the Dispatch Queue.
+*   **Real-time Engine:** WebSocket Gateway via Socket.IO.
+*   **Observability Layer:** Pino/Winston (Logs), Prometheus & Grafana (Monitoring), Sentry (Error Tracking).
 
 ---
 
 ## 🗄️ 2. Database Architecture (Production Schema)
 
-### 👥 USERS COLLECTION / TABLE
+### 👥 USERS TABLE
 *   `userId` (UUID, Primary Key)
 *   `name` (String)
 *   `phone` (String, Unique)
 *   `email` (String, Unique)
 *   `passwordHash` (String)
 *   `role` (Enum: CUSTOMER, PROVIDER, ADMIN)
-*   `profileImageUrl` (String)
+*   `deviceId` (String, indexed for anti-fraud & binding)
 *   `isActive` (Boolean, default: true)
 *   `createdAt`, `updatedAt` (Timestamp)
 
-### 🧑‍🔧 PROVIDERS COLLECTION / TABLE
+### 🧑‍🔧 PROVIDERS TABLE
 *   `providerId` (UUID, Primary Key)
 *   `userId` (UUID, Foreign Key)
 *   `skills` (Array of Strings: ['PLUMBING', 'ELECTRICAL'])
@@ -36,33 +37,30 @@ ServiGo is a production-grade hyperlocal on-demand home services marketplace, ar
 *   `isVerified` (Boolean, default: false)
 *   `availabilityStatus` (Enum: ONLINE, OFFLINE, ON_JOB)
 *   `serviceRadiusKm` (Int)
-*   `currentLocation` (GeoJSON / Point) - *Indexed for spatial queries*
-*   `earningsTotal` (Decimal)
+*   `lastKnownLocation` (GeoJSON / Point) - *Cold storage synchronization*
 *   `walletBalance` (Decimal)
-
-### 🛠️ SERVICES COLLECTION / TABLE
-*   `serviceId` (UUID, Primary Key)
-*   `name` (String)
-*   `category` (String)
-*   `basePrice` (Decimal)
-*   `estimatedTimeMinutes` (Int)
-*   `isActive` (Boolean)
-*   `description` (Text)
-*   `iconUrl` (String)
 
 ### 📅 BOOKINGS TABLE (CORE TRANSACTION TABLE)
 *   `bookingId` (UUID, Primary Key)
 *   `customerId` (UUID, Foreign Key)
 *   `providerId` (UUID, Foreign Key, Nullable until assigned)
 *   `serviceId` (UUID, Foreign Key)
-*   `status` (Enum: PENDING, ASSIGNED, ACCEPTED, ON_THE_WAY, STARTED, COMPLETED, CANCELLED)
+*   `status` (Enum: PENDING, ASSIGNED, ACCEPTED, ON_THE_WAY, STARTED, COMPLETED, EXPIRED, REJECTED, CANCELLED_BY_USER, CANCELLED_BY_PROVIDER, DISPUTE_RAISED)
 *   `issueDescription` (Text)
-*   `images` (Array of URLs)
 *   `scheduledTime` (Timestamp)
 *   `location` (JSON / Address + Lat, Lng)
 *   `priceFinal` (Decimal)
-*   `paymentStatus` (Enum: PENDING, COMPLETED, REFUNDED)
+*   `paymentStatus` (Enum: PENDING, COMPLETED, REFUND_INITIATED, REFUNDED)
 *   `createdAt`, `updatedAt` (Timestamp)
+
+### 💬 MESSAGES TABLE (CHAT SYSTEM)
+*   `messageId` (UUID, Primary Key)
+*   `bookingId` (UUID, Foreign Key)
+*   `senderId` (UUID)
+*   `receiverId` (UUID)
+*   `messageType` (Enum: TEXT, IMAGE, LOCATION)
+*   `content` (Text)
+*   `timestamp` (Timestamp)
 
 ### 💳 PAYMENTS TABLE
 *   `paymentId` (UUID, Primary Key)
@@ -70,91 +68,68 @@ ServiGo is a production-grade hyperlocal on-demand home services marketplace, ar
 *   `amount` (Decimal)
 *   `paymentMethod` (Enum: UPI, CASH, WALLET, CARD)
 *   `transactionStatus` (Enum: SUCCESS, FAILED, PENDING)
-*   `gatewayReferenceId` (String)
+*   `gatewayOrderId` (String) - *Razorpay Orders API reference*
 
-### ⭐ RATINGS TABLE
-*   `ratingId` (UUID)
-*   `bookingId` (UUID)
-*   `customerId` (UUID)
-*   `providerId` (UUID)
-*   `stars` (Int, 1-5)
-*   `reviewText` (Text)
-
----
-
-## 🔧 3. Service Provider App (Flutter Details)
-
-The Provider app is the engine of the marketplace. It requires a robust, distraction-free UI.
-
-**1. Onboarding & Auth:**
-*   Phone OTP login (Firebase Auth).
-*   KYC flow (Upload PAN/Aadhaar images, take a selfie).
-*   Skill & category selection matrix.
-
-**2. Provider Dashboard:**
-*   **Header:** Online/Offline toggle switch (Critical for dispatch engine).
-*   **Stats Matrix:** Today's Earnings, Active Jobs, Acceptance Rate, Current Rating.
-*   **Heatmap (Future):** Show areas with high customer demand.
-
-**3. Job Request Engine (Live Dispatch):**
-*   Full-screen takeover modal when a job matches.
-*   Lays out: Distance, Estimated Earnings, Service Type.
-*   15-second countdown timer to Accept/Reject (Uber-style).
-
-**4. Active Job Flow:**
-*   **Navigate:** Launches Google Maps intent to customer location.
-*   **Status Toggles:** "Arrived" -> "Job Started" (requires OTP from customer to verify) -> "Job Completed".
-*   **Invoice Generator:** Add extra parts/labor cost before final completion.
-
-**5. Wallet & Earnings:**
-*   Real-time payout ledger.
-*   Withdraw to bank account (RazorpayX / Stripe Connect integration).
+### 👛 WALLET_LEDGER TABLE
+*   `transactionId` (UUID, Primary Key)
+*   `providerId` (UUID, Foreign Key)
+*   `type` (Enum: CREDIT, DEBIT)
+*   `reason` (Enum: JOB_PAYMENT, PENALTY, WITHDRAWAL, COMMISSION_FEE)
+*   `amount` (Decimal)
+*   `balanceAfter` (Decimal)
+*   `timestamp` (Timestamp)
 
 ---
 
-## ⚙️ 4. Backend API Structure (NestJS / Node.js)
+## 🔧 3. Event-Driven Microservices Architecture
 
-### Auth & Navigation
-*   `POST /auth/register` (Customer/Provider)
-*   `POST /auth/verify-otp`
+The system utilizes an event-driven microservices architecture to handle load gracefully, separated by bounded contexts.
 
-### Customer Gateway
-*   `GET /api/v1/services?category=all`
-*   `POST /api/v1/bookings/create` (Initiates the Smart Matching Engine)
-*   `GET /api/v1/bookings/history`
-*   `POST /api/v1/ratings`
-
-### Provider Gateway
-*   `PUT /api/v1/provider/status` (Update presence/Lat-Lng)
-*   `GET /api/v1/provider/jobs/active`
-*   `POST /api/v1/provider/jobs/:id/accept`
-*   `PUT /api/v1/provider/jobs/:id/status` (Update flow state)
-
-### Webhook & Payment Gateway
-*   `POST /api/v1/payments/initiate`
-*   `POST /webhook/razorpay` (Handling async payment success)
+*   **API Gateway:** Handles Rate Limiting, JWT Auth verification, and RBAC routing.
+*   **Auth Service:** Manages OTP verification, JWT generation (Access + Refresh tokens), and Device Binding.
+*   **User/Provider Service:** Profile management, KYC verification workflows, and wallet balances.
+*   **Booking Service:** Core CRUD for bookings, manages pricing algorithms.
+*   **Dispatch Service ⭐:** (System Core) A dedicated microservice consuming booking tasks via Redis Queue (BullMQ). It processes spatial matching and pings providers asynchronously.
+*   **Payment Service:** Integrates with Razorpay Orders API, handles split settlements and refunds.
+*   **Notification Service:** Unified hub for FCM (Push), SMS (Twilio/AWS SNS), and Email (SendGrid).
+*   **WebSocket Gateway:** Dedicated scaled socket servers handling live location streaming and chat channels.
 
 ---
 
-## 🧠 5. Core Logic & Algorithms
+## 🧠 4. Core Logic & Algorithms
 
-### 🎯 1. Smart Matching Engine (The Dispatcher)
-Triggered asynchronously via `POST /booking/create`:
-1.  **Geospatial Query:** Query providers where `ST_Distance(provider.location, customer.location) <= provider.serviceRadiusKm`.
-2.  **Filter Filter:** Ensure `provider.skills` contains `booking.serviceCategory`.
-3.  **State Filter:** Ensure `provider.availabilityStatus == ONLINE` and `activeJobs == 0`.
-4.  **Priority Sorting Algorithm:**
-    *   Sort primarily by `Distance` (nearest first).
-    *   Secondary sort by `Rating` (reward top providers).
-    *   Tertiary sort by `Acceptance Rate` (reward reliable providers).
-5.  **Dispatch:** Emit WebSocket event to the top matched provider. If unaccepted in 15 seconds, ping the next provider in the queue.
+### 🎯 1. Smart Matching Engine (Asynchronous Queue)
+Triggered asynchronously when a booking is created (`POST /booking/create`):
+1.  **Job Queued:** Booking details sent to Redis `DispatchQueue`.
+2.  **Geospatial Query:** Locate providers via Redis GEO indexes (hot data).
+3.  **Filtration:** Must match `booking.category` AND `availabilityStatus == ONLINE` AND `activeJobs == 0`.
+4.  **Priority Scoring Formula:**
+    `Match Score = (0.4 × Distance_Score) + (0.3 × Rating_Score) + (0.2 × Acceptance_Rate) + (0.1 × Response_Time)`
+5.  **Fatigue & Fairness:** Apply penalties to providers who have received many pings recently to ensure fair job distribution.
+6.  **Sequential Dispatching:** 
+    * Emit WebSocket event to the highest-scoring provider.
+    * If no response within 15 seconds, ping the next provider in the queue.
+    * If queue is exhausted without acceptance, mark booking status as `EXPIRED`.
 
-### 💰 2. Dynamic Pricing Engine
-Triggered at booking checkout:
-*   `Base Price`: Derived from Service Catalog.
-*   `Distance Charge`: + ₹X per km if provider is > 3km away.
-*   `Peak Time Multiplier`: e.g., 1.5x during extreme weather or high demand / low supply ratios.
-*   `Emergency Fee`: Flat premium for "ASAP / Within 30 Mins" SLA.
+### 📍 2. Hybrid Provider Location System
+Avoid burning PostGIS rows every few seconds:
+*   **Hot Data (Live Tracking):** Providers emit location every 2-5s via WebSockets. Stored in **Redis GEO hashes** (TTL 60s) for live dispatch algorithms.
+*   **Cold Data (Permanent State):** A batch-sync cron job pulls the latest coordinates from Redis every 60 seconds and updates the PostGIS `Providers.lastKnownLocation` column for historical analytics and debugging.
+
+### 💰 3. Dynamic Pricing Engine
+`Price = Base_Price + Distance_Charge + Emergency_Fee + Peak_Time_Multiplier`
+*   **Distance Charge:** + ₹X per km if provider is > 3km away.
+*   **Peak Time Multiplier:** Adaptive factor based on demand vs. available supply ratio in a given geofence.
+
+---
+
+## 🔔 5. Unified Notification Engine
+
+Crucial for marketplace trust and reliability. Dispatches real-time updates through fallbacks (Push -> SMS):
+*   Booking confirmed (Customer)
+*   New Job Request (Provider)
+*   Provider accepted / arriving / completed (Customer)
+*   Payment successful / Refund initiated (Both)
 
 ---
 
@@ -166,14 +141,12 @@ Triggered at booking checkout:
 3.  **Surge Controller:** Manual override switches to activate peak pricing multipliers per geofence.
 4.  **Dispute Resolution:** View booking history, chat logs, and issue refunds or penalty fees.
 5.  **Service Catalog Manager:** Add new services, update base pricing, and change category icons without app updates.
+6.  **Financial Dashboard:** Monitor split settlements, wallet withdrawals, and platform commissions.
 
 ---
 
 ## 🚀 Deployment & Scale Strategy
 
-1.  **Phase 1 (MVP Deployment):** Monolithic Node.js server handling both matching and APIs. Hosted on Render or Heroku. Managed PostgreSQL.
-2.  **Phase 2 (City-wide Scale):** Split into Microservices:
-    *   `API Gateway` (Rate limiting, auth)
-    *   `Dispatch Service` (Heavy socket usage, memory intensive)
-    *   `Core API Service` (CRUD operations)
-3.  **Phase 3 (Nation-wide Expansion):** Kubernetes cluster auto-scaling, Redis for fast geofencing and caching active provider locations (instead of writing location to PostgeSQL every 10 seconds).
+1.  **Phase 1 (MVP Deployment):** Monolithic Node.js server handling both matching and APIs. Hosted on AWS EC2 or Render. Managed PostgreSQL + Redis.
+2.  **Phase 2 (City-wide Scale):** Split out the Dispatch Service and WebSocket Gateway into scalable Kubernetes pods.
+3.  **Phase 3 (Nation-wide Expansion):** Full Kubernetes auto-scaling cluster. Event-driven Kafka pipeline for analytics. Read-replicas for PostgreSQL.
